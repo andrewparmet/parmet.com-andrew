@@ -9,4 +9,4 @@ Jekyll source for https://parmet.com/andrew/.
 
 Run `bundle install`, then `bundle exec jekyll serve` and visit http://localhost:4000/andrew/ to preview.
 
-Push to `main` to publish through GitHub Pages. Cloudflare checks both personal repositories hourly; manually run **Publish Cloudflare website** in the private infrastructure repository to publish sooner. That repository does not overwrite this source.
+Push to `main` to publish through GitHub Pages. Cloudflare proxies the published GitHub Pages site on request. No infrastructure rebuild is needed; GitHub Pages deployment and upstream caching can still delay updates. Keep links relative or under `/andrew/`.
