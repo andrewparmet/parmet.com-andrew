@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title | escape }} · {{ site.title | escape }}</title>
+  {% if page.description %}<meta name="description" content="{{ page.description | escape }}">{% endif %}
+  <link rel="canonical" href="{{ page.url | absolute_url }}">
+  <link rel="stylesheet" href="{{ '/style.css' | relative_url }}">
+</head>
+<body{% if page.gallery %} class="gallery"{% endif %}>
+{% unless page.home %}
+<nav aria-label="Breadcrumb"><a href="{{ '/' | relative_url }}">Andrew’s homepage</a>{% if page.layout == 'post' %} / <a href="{{ '/blog/' | relative_url }}">Blog</a>{% endif %}</nav>
+{% endunless %}
+<main>
+{{ content }}
+</main>
+</body>
+</html>

@@ -1,0 +1,13 @@
+title: Andrew Parmet
+url: https://parmet.com
+baseurl: /andrew
+markdown: kramdown
+highlighter: none
+kramdown:
+  input: GFM
+  syntax_highlighter: null
+  smart_quotes: [apos, apos, quot, quot]
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock

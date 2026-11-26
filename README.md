@@ -1,9 +1,12 @@
 # Andrew’s website
 
-Source for https://parmet.com/andrew/.
+Jekyll source for https://parmet.com/andrew/.
 
-Edit the HTML, CSS, and assets in this repository and push to `main`. Cloudflare hosting checks for updates hourly. To publish sooner, manually run **Publish Cloudflare website** in the private `parmet.com` infrastructure repository.
+- Edit root Markdown files for topic pages. Their `permalink` values preserve the existing URLs.
+- Add dated Markdown files under `_posts/` for blog posts.
+- Edit `_data/galleries.yml` for gallery captions, thumbnail paths, full-size image paths, and alt text. Pages insert a gallery with `{% include gallery.html gallery=site.data.galleries.NAME %}`.
+- Shared HTML lives in `_layouts/` and `_includes/`; all pages use `style.css`.
 
-Preview locally with `python3 -m http.server 8000 --bind 127.0.0.1`. Keep website links relative. GitHub Pages also publishes this repository at https://andrewparmet.github.io/parmet.com-andrew/.
+Run `bundle install`, then `bundle exec jekyll serve` and visit http://localhost:4000/andrew/ to preview.
 
-This repository is the source of truth. The private infrastructure repository does not overwrite its contents.
+Push to `main` to publish through GitHub Pages. Cloudflare checks both personal repositories hourly; manually run **Publish Cloudflare website** in the private infrastructure repository to publish sooner. That repository does not overwrite this source.

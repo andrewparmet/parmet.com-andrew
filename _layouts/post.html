@@ -1,0 +1,11 @@
+---
+layout: default
+---
+<article>
+<header>
+  <h1>{{ page.title | escape }}</h1>
+  <p class="date"><time datetime="{{ page.date | date: '%Y-%m-%d' }}">{{ page.date | date: '%B %-d, %Y' }}</time> · Andrew Parmet</p>
+</header>
+{{ content }}
+</article>
+<footer><a href="{{ '/blog/' | relative_url }}">All posts</a></footer>

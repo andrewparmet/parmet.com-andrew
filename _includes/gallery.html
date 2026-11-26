@@ -1,0 +1,6 @@
+<div class="image">
+  {% if include.gallery.title %}<h{{ include.gallery.heading }}>{{ include.gallery.title | escape }}</h{{ include.gallery.heading }}>{% endif %}
+  {% for image in include.gallery.images %}
+  <a href="{{ image.full | relative_url }}"><img src="{{ image.thumbnail | relative_url }}" alt="{{ image.alt | escape }}"></a>
+  {% endfor %}
+</div>
