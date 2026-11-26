@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guava Services in Kotlin · Andrew Parmet</title>
+  <meta name="description" content="Managing resource lifecycles with Guava Services and Kotlin interface delegation.">
+  <link rel="canonical" href="https://parmet.com/andrew/blog/guava-services-in-kotlin/">
+  <link rel="stylesheet" href="../blog.css">
+</head>
+<body>
+<nav aria-label="Breadcrumb"><a href="../../">Andrew’s homepage</a> / <a href="../">Blog</a></nav>
+<main>
+<article>
+  <header>
+    <h1>Guava Services in Kotlin</h1>
+    <p class="date"><time datetime="2020-07-03">July 3, 2020</time> · Andrew Parmet</p>
+  </header>
+<p>Recently I finally got to use a relatively little-known part of Google's Guava library. The Guava <a href="https://guava.dev/releases/29.0-jre/api/docs/com/google/common/util/concurrent/Service.html">Service</a> interface declares that a class has a lifecycle. A Service can be new, starting, running, stopping, terminated, or failed. Additionally you can register listeners to be called when the Service reaches any of these states. Services can only be called asynchronously via their <code>startAsync()</code> and <code>stopAsync()</code> methods, although the interface also provides <code>awaitRunning()</code> and <code>awaitTerminated()</code> (and TimeUnit-based overloads) to block if needed. I discovered Service a few years ago and for a while it largely remained a curiosity for me.</p>
+
+
+
+<h2>Resource Management in Java</h2>
+
+
+
+<p>My team was about to embark on a research project involving spinning up a very expensive resource-hungry service on Android tablets in a hot kitchen environment in an active restaurant. If we needed to pull the emergency shutoff switch, we <em>really</em> wanted to know our code would relinquish all resources cleanly and quickly so we didn't disturb restaurant operations any more than we absolutely had to. On top of that requirement, we wanted to be able to turn the service back on automatically when activity calmed down. And we wanted this to happen reliably across thousands of tablets across the country.</p>
+
+
+
+<p>I tend to use two different kinds of resources in my daily coding: short-lived resources, like database connections and HTTP connections, and long lived resources, like thread pools and connection pools. Of course interactions with those pools often resemble those of their constituent parts: acquire a connection from the pool and use it like it was a connection you opened yourself. In the case of a thread pool, you don't use the thread itself explicitly - but it's the thing that runs your code.</p>
+
+
+
+<p>In modern Java the story with short-lived resources as an author is you wrap them in AutoClosable, implement <code>close()</code>, and call it a day. Callers should use try-with-resources, or <code>use()</code> in Kotlin, and you've cleaned your hands of the ugliness of resource management. Even if you're constrained to Java 1.6 or prior - you can use an older version of Guava and use Closer, and you'll still get out alive.</p>
+
+
+
+<p>Long-lived resources are more difficult to wrangle, as each library does things a little differently. ExecutorService exposes <code>shutdown()</code>, <code>shutdownNow()</code>, and <code>awaitTerminated()</code>. gRPC Servers expose a similar API - influenced by that of ExecutorService - but unlike short-lived resources, these classes do not share an interface. Each requires bespoke handling, or you must write a wrapper. In other libraries, such as the AWS SDK for Java v2, service clients <em>do</em> all implement AutoCloseable, but it's not for the utility of try-with-resources, since they are intended to be long-lived. Instead, since they all do share an interface, you get to write only one wrapper and it will work for every client. This strategy is better than no common interface at all, but it still has an issue: how do you deal with startup?</p>
+
+
+
+<p>The assumption usually taken with AutoCloseable is that you're actively using a resource as soon as you have the object in your grasp, necessarily binding the acquisition of the resource to the object's construction. But that's not always the case; a connection pool might implement AutoCloseable yet lazily acquire connections, which means you can actually construct and destroy the object for free. The cost of acquiring connections is then amortized over all callers. In contrast, gRPC Servers bind to a socket only when you call <code>start()</code> - so you can construct a Server for free, and AutoCloseable feels like it would misrepresent the behavior of the class.</p>
+
+
+
+<p>On the backend, I've often used the lifecycle callbacks on Servlet containers and their ilk to manage these long-lived resources. I often see application shutdown and resource release ignored. The Docker container is coming down anyways and the server should kill those orphaned connections, right? (This doesn't always happen, which occasionally causes issues, but by and large it's <em>correct enough</em>.) The better option is to use those same lifecycle callbacks, which usually include notification of impending shutdown, or to register a shutdown hook that does the same. Obviously you can't be perfect (thinking of that famous bit of Java trivia about uncalled <code>finally</code> statements), but you can do your best.</p>
+
+
+
+<p>Targeting Android we had no Servlet callbacks, and we weren't even bound to application lifecycle: if we were going to be dynamically starting up and shutting down, we needed to find our own approach. Our initial implementations of our service had a small mishmash of resource-consuming classes and we tried to respect those that implemented AutoCloseable and those that didn't. Things quickly got out of hand, and I thought we might turn to that esoteric corner of Guava containing Services.</p>
+
+
+
+<h2>Turning to Service: A First Implementation</h2>
+
+
+
+<p>Besides defining ironclad semantics for resource lifecycle, the real utility of Service is that you can combine fleets of Services in a <a href="https://guava.dev/releases/29.0-jre/api/docs/com/google/common/util/concurrent/ServiceManager.html">ServiceManager</a> and coordinate their startups and shutdowns independent of any framework. If we structured our code correctly, we ought to be able to capitalize on this ability and use a ServiceManager to handle clean startup and shutdown of our service without worrying about leaking resources.</p>
+
+
+
+<p>Guava provides several skeletal implementations of Service and by far the most useful proved to be <a href="https://guava.dev/releases/29.0-jre/api/docs/com/google/common/util/concurrent/AbstractIdleService.html">AbstractIdleService</a>. Extending AbstractIdleService requires that you implement two methods, <code>startUp()</code> and <code>shutDown()</code>, each of which is called by an Executor controlled by the Service class. The default implementation simply starts a new thread for each operation and lets it die when your function completes, which was good enough for us.</p>
+
+
+
+<p>The first thing we did was wrap our database in a Service:</p>
+
+
+
+<pre><code>class DatabaseService : AbstractIdleService() {
+    private lateinit var db: DB
+
+    override fun startUp() {
+        db = DB.create()
+    }
+
+    override fun shutDown() {
+        db.close()
+    }
+
+    fun write(key: ByteArray, value: ByteArray) {
+        check(isRunning)
+        db.write(key, value)
+    }
+}</code></pre>
+
+
+
+<p>And then we wanted to wrap our DatabaseService in one that understood our domain objects. We wanted something like this:</p>
+
+
+
+<pre><code>class FooStorageService(
+    private val db: DatabaseService
+) {
+    fun write(foo: Foo) {
+        db.write(foo.id.toBytes(), foo.toBytes())
+    }
+}</code></pre>
+
+
+
+<p>And we were left with the question of how the usage of FooStorageService was going to interplay with the lifecycle of DatabaseService. We didn't want callers to have to worry about starting and stopping the DatabaseService. Its instantiation (and even its implementation, when we defined an interface for it) was not our concern - hence constructor-based dependency injection - but its lifecycle <em>was</em> our concern, since we were going use it. The result of calling <code>FooStorageService.write()</code> implicitly depends on the Service state of DatabaseService.</p>
+
+
+
+<h2>Managing Classes That Depend on a Service</h2>
+
+
+
+<p>We saw two options to keep a clean separation of responsibilities: maintain a top-level set of all Services and ensure no class calls into a Service before ensuring its state is correct (perhaps by calling <code>awaitRunning()</code> before <code>write()</code>), or own the lifecycle ourselves. The prospect of tracking every Service from some unknown upper level was daunting, especially given that we started our implementation at the bottom and didn't know what the top was going to look like. We decided to try owning the lifecycle. A nice side effect of that approach would be that FooStorageService would be a Service itself, and then we could treat <em>it</em> as if it was a lowest-level Service and not worry about DatabaseService's lifecycle at all. We'd end up with our desired set of Services anyways, so long as each Service's lifecycle was properly encapsulated.</p>
+
+
+
+<p>Ideally we'd do something like this to delegate the Service behavior:</p>
+
+
+
+<pre><code>class FooStorageService(
+    private val db: DatabaseService
+) : AbstractIdleService() {
+    override fun startUp() {
+        db.startUp()
+    }
+
+    override fun shutDown() {
+        db.shutDown()
+    }
+
+    fun write(foo: Foo) {
+        db.write(foo.id.toBytes(), foo.toBytes())
+    }
+}</code></pre>
+
+
+
+<p>But alas, <code>startUp()</code> and <code>shutDown()</code> are <code>protected</code>, so we can't call them from FooStorageService. And if we wanted to provide an alternative implementation of DatabaseService, we might not know it's an AbstractIdleService.</p>
+
+
+
+<p>We might try to use Service's public API instead:</p>
+
+
+
+<pre><code>class FooStorageService(
+    private val db: DatabaseService
+) : AbstractIdleService() {
+    override fun startUp() {
+        db.startAsync().awaitRunning()
+    }
+
+    override fun shutDown() {
+        db.stopAsync().awaitTerminated()
+    }
+}</code></pre>
+
+
+
+<p>And this is almost acceptable. It has a few problems: first, users must pay thread startup costs twice: once in FooStorageService and again in DatabaseService. This thread cost was ominous since we were targeting Android, where these operations' costs are exacerbated, and we were anticipating having many Services. We could override this behavior - AbstractIdleService allows you to specify the Executor to which it passes your startup and shutdown methods - so we could have specified <code>MoreExecutors.directExecutor()</code> in DatabaseService and not paid this cost. But we didn't love the idea of coupling the behavior of the two classes and we were wary of the dangers of unexpectedly blocking caller threads, so we didn't experiment with that approach too much. Perhaps it would have been viable.</p>
+
+
+
+<p>A more serious problem was that like Java, Kotlin constrains class hierarchies to single inheritance. If we wanted FooStorageService to extend AbstractFooStorageService, we would be forced to delegate our Service state anyways. Alternatively AbstractFooStorageService itself could extend AbstractIdleService, but that would leave implementations with poor flexibility if they wanted to use a different Service skeleton. Inspired by the extensive use of delegation within Guava's provided implementations of Service, we decided to try and find a good pattern for delegation.</p>
+
+
+
+<h2>Delegating Service State</h2>
+
+
+
+<p>The naïve approach was to delegate behavior directly to the methods of DatabaseService:</p>
+
+
+
+<pre><code>class FooStorageService(
+    private val db: DatabaseService
+) : Service {
+    override fun startAsync() =
+        db.startAsync()
+
+    override fun awaitRunning() =
+        db.awaitRunning()
+    
+    // etc.
+}</code></pre>
+
+
+
+<p>But this quickly gets exhausting, and it's a whole lot of boilerplate. Had we been using Java, we'd probably have given up and explored direct Executors or horribly hacked default methods for quasi-multiple inheritance, or eventually hunkered down and dealt with the boilerplate. But we were using Kotlin, so we got to pull a nice trick out of our sleeves using <a href="https://kotlinlang.org/docs/reference/delegation.html">interface delegation</a>:</p>
+
+
+
+<pre><code>class FooStorageService(
+    private val db: DatabaseService
+) : Service by db {
+    fun write(foo: Foo) {
+        db.write(foo.id.toBytes(), foo.toBytes())
+    }
+}</code></pre>
+
+
+
+<p>And suddenly we didn't have to write any code at all.</p>
+
+
+
+<p>The best part of this pattern is that we could repeat it ad nauseam all the way up the object hierarchy until we reached an object that depended on more than one Service for its functionality. At that point we wrapped ServiceManager in an AbstractService, provided those Services via an instance of that class, and began the cycle anew.</p>
+
+
+
+<p>Today our service is running in some form on all of our tablets. I think that this combination of the correctness of Guava Services and the conciseness of Kotlin interface delegation was a key factor in our confidence in our code.</p>
+</article>
+</main>
+<footer><a href="../">All posts</a></footer>
+</body>
+</html>
