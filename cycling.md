@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Cycling
-permalink: /cycling.html
+permalink: /cycling/
 gallery: true
 ---
 

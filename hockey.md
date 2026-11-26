@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Hockey
-permalink: /hockey.html
+permalink: /hockey/
 gallery: true
 ---
 

@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Squash and Tennis
-permalink: /squash-and-tennis.html
+permalink: /squash-and-tennis/
 gallery: true
 ---
 

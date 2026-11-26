@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Gardening
-permalink: /gardening.html
+permalink: /gardening/
 gallery: true
 ---
 

@@ -5,20 +5,20 @@ permalink: /
 home: true
 ---
 
-[Blog](blog/)
+[Blog]({{ '/blog/' | relative_url }})
 
-[Physics](phys.html)
+[Physics]({{ '/phys/' | relative_url }})
 
-[Computer Science](cs.html)
+[Computer Science]({{ '/cs/' | relative_url }})
 
-[Ultimate](ult.html)
+[Ultimate]({{ '/ult/' | relative_url }})
 
-[Hockey](hockey.html)
+[Hockey]({{ '/hockey/' | relative_url }})
 
-[Cycling](cycling.html)
+[Cycling]({{ '/cycling/' | relative_url }})
 
-[Skiing](skiing.html)
+[Skiing]({{ '/skiing/' | relative_url }})
 
-[Squash and Tennis](squash-and-tennis.html)
+[Squash and Tennis]({{ '/squash-and-tennis/' | relative_url }})
 
-[Gardening](gardening.html)
+[Gardening]({{ '/gardening/' | relative_url }})

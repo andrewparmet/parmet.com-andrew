@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Computer Science
-permalink: /cs.html
+permalink: /cs/
 ---
 
 ## GitHub
@@ -26,20 +26,20 @@ Some highlights:
 
 Assignments:
 
-[Language specification](language.pdf)  
-[Object-oriented language extension](oolang.pdf)  
-[Type system specification](types.pdf)  
-[ABI specification](abi.pdf)  
-[Project 1](pa1.pdf)  
-[Project 2](pa2.pdf)  
-[Project 3](pa3.pdf)  
-[Project 4](pa4.pdf)  
-[Project 5](pa5.pdf)  
-[Project 6](pa6.pdf)  
-[Project 7](pa7.pdf)
+[Language specification]({{ '/language.pdf' | relative_url }})  
+[Object-oriented language extension]({{ '/oolang.pdf' | relative_url }})  
+[Type system specification]({{ '/types.pdf' | relative_url }})  
+[ABI specification]({{ '/abi.pdf' | relative_url }})  
+[Project 1]({{ '/pa1.pdf' | relative_url }})  
+[Project 2]({{ '/pa2.pdf' | relative_url }})  
+[Project 3]({{ '/pa3.pdf' | relative_url }})  
+[Project 4]({{ '/pa4.pdf' | relative_url }})  
+[Project 5]({{ '/pa5.pdf' | relative_url }})  
+[Project 6]({{ '/pa6.pdf' | relative_url }})  
+[Project 7]({{ '/pa7.pdf' | relative_url }})
 
-[Click here](compiler.pdf) to see a short presentation I gave about the register allocation algorithm in my compiler.
+[Click here]({{ '/compiler.pdf' | relative_url }}) to see a short presentation I gave about the register allocation algorithm in my compiler.
 
 ### Settlers of Catan
 
-[Assignment](catan.pdf) for Settlers of Catan implementation.
+[Assignment]({{ '/catan.pdf' | relative_url }}) for Settlers of Catan implementation.

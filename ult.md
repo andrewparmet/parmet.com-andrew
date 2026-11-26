@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Ultimate
-permalink: /ult.html
+permalink: /ult/
 gallery: true
 ---
 

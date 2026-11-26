@@ -1,7 +1,7 @@
 ---
 layout: page
 title: Skiing
-permalink: /skiing.html
+permalink: /skiing/
 gallery: true
 ---
 
